@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  linux:
+    container_name: linux
+    volumes:
+      - ./levels:/levels
+    working_dir: /levels/level1
+    stdin_open: true
+    tty: true
+    build:
+      context: .
+      dockerfile: Dockerfile
