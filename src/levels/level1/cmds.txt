@@ -1,0 +1,6 @@
+to patch:
+
+r2 -w level1_patched
+/a cmp eax, 0
+s <address>
+wx 31c090 // xor eax, eax ; nop

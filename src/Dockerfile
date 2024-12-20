@@ -30,3 +30,12 @@ RUN ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
 # Install PEDA for GDB
 RUN git clone https://github.com/longld/peda.git ~/peda && \
     echo "source ~/peda/peda.py" >> ~/.gdbinit
+
+WORKDIR /etc
+RUN git clone https://github.com/radareorg/radare2
+WORKDIR radare2
+RUN sys/install.sh
+
+RUN apt-get update && \
+    apt-get install -y bsdiff && \
+    rm -rf /var/lib/apt/lists/*
