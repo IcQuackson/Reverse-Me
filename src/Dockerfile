@@ -6,22 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Enable i386 architecture
 RUN dpkg --add-architecture i386
 
-# Install required packages, including Qt5 development libraries
-RUN apt-get update
-RUN apt-get install -y libc6:i386 lib32gcc-s1 gdb gcc make cmake g++ python3 python3-dev zlib1g-dev
-RUN apt-get install -y git vim build-essential tzdata
-RUN apt-get install -y libssl-dev qtbase5-dev qttools5-dev qttools5-dev-tools libcapstone-dev
-RUN apt-get install -y flex bison
-RUN rm -rf /var/lib/apt/lists/*
-
-# Clone and build Boomerang
-RUN git clone https://github.com/BoomerangDecompiler/boomerang.git
-WORKDIR /boomerang
-RUN mkdir build
-WORKDIR /boomerang/build
-RUN cmake -DCapstone_INCLUDE_DIR=/usr/include/capstone -DCapstone_LIBRARY=/usr/lib/x86_64-linux-gnu/libcapstone.so ..
-RUN make
-RUN make install
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    libc6:i386 lib32gcc-s1 gdb gcc make cmake g++ python3 python3-dev zlib1g-dev \
+    git vim build-essential tzdata libssl-dev qtbase5-dev qttools5-dev qttools5-dev-tools \
+    libcapstone-dev flex bison bsdiff wget unzip xz-utils && \
+    apt-get clean
 
 # Set timezone to UTC
 RUN ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
@@ -31,11 +21,29 @@ RUN ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
 RUN git clone https://github.com/longld/peda.git ~/peda && \
     echo "source ~/peda/peda.py" >> ~/.gdbinit
 
+# Install Radare2
 WORKDIR /etc
-RUN git clone https://github.com/radareorg/radare2
-WORKDIR radare2
-RUN sys/install.sh
+RUN git clone https://github.com/radareorg/radare2 && \
+    cd radare2 && \
+    sys/install.sh && \
+    cd .. && \
+    rm -rf radare2
 
-RUN apt-get update && \
-    apt-get install -y bsdiff && \
-    rm -rf /var/lib/apt/lists/*
+# Download and extract prebuilt RetDec binary
+RUN wget -q https://github.com/avast/retdec/releases/download/v4.0/retdec-v4.0-ubuntu-64b.tar.xz && \
+    tar -xf retdec-v4.0-ubuntu-64b.tar.xz -C /opt && \
+    rm retdec-v4.0-ubuntu-64b.tar.xz
+
+# Add RetDec to PATH
+ENV PATH="/opt/retdec/bin:$PATH"
+
+# Wrapper script for easier decompilation
+RUN echo '#!/bin/bash\n'\
+'retdec-decompiler.py --output /workspace/decompiled.c "$1" && \n'\
+'cat /workspace/decompiled.c\n' > /usr/local/bin/decompile && \
+    chmod +x /usr/local/bin/decompile
+
+RUN mkdir /workspace
+
+# Default command
+CMD ["/bin/bash"]

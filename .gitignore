@@ -5,3 +5,6 @@ peda*
 .vscode/settings.json
 src/levels/level1/a.out
 src/levels/level1/output/
+/workspace
+
+src/workspace/

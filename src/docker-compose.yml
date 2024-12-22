@@ -4,7 +4,8 @@ services:
     container_name: linux
     volumes:
       - ./levels:/levels
-    working_dir: /levels/level1
+      - ./workspace:/workspace
+    working_dir: /levels
     stdin_open: true
     tty: true
     build:
