@@ -56,106 +56,165 @@
 
 ## **Level 1**
 
-2. **Analyze program behaviour**:
-   ```bash
-   bash$ cd /levels/level1
-   bash$ ./level1
-   Please enter key: hello
-   Nope.
-   ```
-   - As we can see, the program asks for input, likely validates the code comparing it to a string variable and then returns a response indicating success or fail.
-   - This gives us useful information because it means we can analyze the program instructions and find the variable that stores the string used for validation.
-   - We then use gdb to analyze the program further:
+### Analyze program behavior:
+```bash
+bash$ cd /levels/level1
+bash$ ./level1
+Please enter key: hello
+Nope.
+```
+- The program likely validates the input by comparing it to a stored string. Using `gdb`, we analyze further:
 
-   ```bash
-   bash$ gdb ./level
-   <GDB terminal output>
-   gdb-peda$
-   ```
-   - As you can see we have installed [PEDA](https://github.com/longld/peda) which is a GDB plugin to add commands to support debugging and exploit development.
-   - Let's see the whole assemble code for the main function so we can analyze all the instructions:
+```bash
+bash$ gdb ./level1
+<gdb output>
+gdb-peda$
+```
 
-   ```bash
-   gdb-peda$ disassemble main
-   ```
-  
-  - We can clearly see a very interesting function being used which is `strcmp` and likely the 2 registers (`edx` and `ecx`)  being used to store the 2 function arguments:
-  ```bash
-  0x565e9237 <+119>:   mov    DWORD PTR [eax+0x4],edx
-  0x565e923a <+122>:   mov    DWORD PTR [eax],ecx
-  0x565e923c <+124>:   call   0x565e9040 <strcmp@plt>
-  ```
-  - Let's set a breakpoint at the `strcmp` call, run the program and look for useful information.
-  ```bash
-  gdb-peda$ b strcmp
-  gdb-peda$ run
-  ```
+- Disassembling the `main` function reveals a `strcmp` call with two arguments in registers `ecx` and `edx`:
 
-- Check out this part of the output:
+```bash
+gdb-peda$ disassemble main
+<disassembled output>
+```
+
+- Setting a breakpoint at `strcmp` and running the program reveals:
 ```bash
 ECX: 0xffc1267c ("hello")
 EDX: 0xffc1266e ("__stack_check")
 ```
-
-- These are the registers we were looking for! Looks like `__stack_check` might be what we wanted.
-- Let's try that code:
+- The correct code is `__stack_check`:
 ```bash
 Please enter key: __stack_check
 Good job.
 ```
-- We found the code!
-- Now, to write a copy of the original program we can look at the `disassemble main` command output again.
-- The program also uses `printf` and `scanf`.
-- The program should look like:
-```C
+
+### Recreating the program
+Here is the recreated C program:
+```c
 #include <stdio.h>
 #include <string.h>
 
+int main() {
+    char user_input[112];
 
-int main()
-{
-	char user_input[112];
-
-	printf("Please enter key: ");
+    printf("Please enter key: ");
     scanf("%s", user_input);
 
-	if (strcmp(user_input, "__stack_check") == 0)
-	{
-		printf("Good job.\n");
-	}
-	else
-	{
-		printf("Nope.\n");	
-	}
-}
-```
-
-- If you want to be sure you can always use the `boomerang` to decompile the binary file.
-```bash
-bash$ boomerang-cli level1
-```
-- You should get something like:
-```C
-int main(int argc, char *argv[]);
-
-
-/** address: 0x000011c0 */
-int main(int argc, char *argv[])
-{
-    int eax; 		// r24
-    char local0; 		// m[esp - 112]
-
-    printf(pc + 0xe47);
-    scanf(pc + 0xe5a);
-    eax = strcmp(&local0, &eax);
-    if (eax != 0) {
-        printf(pc + 0xe68);
-    }
-    else {
-        printf(pc + 0xe5d);
+    if (strcmp(user_input, "__stack_check") == 0) {
+        printf("Good job.\n");
+    } else {
+        printf("Nope.\n");
     }
     return 0;
 }
 ```
-- The notation m[esp - 112] indicates that the variable local0 resides at an offset of 112 bytes below the stack pointer (esp). So now we also have the buffer size for the `user_input` string.
 
+### Patching the binary
+To allow validation with any password:
+1. Open the binary using `radare2`, identify the instruction and replace it to bypasse verification.
+	```bash
+	cp level1 level1_patched // copy
+ 	r2 -w level1_patched
+ 	aa // analyze instructions
+	/a cmp eax, 0 // find nearest instruction of that pattern
+	s <address> // go to instruction
+	wx 31c090 // xor eax, eax ; nop // overwrite instruction by clearing register used for checking
+ 	qyy // save and quit
+	```
+2. Test.
+```bash
+Please enter key: anything
+Good job.
+```
+3. Generate patch.
+	```bash
+	bsdiff level1 level1_patched level1.patch
+	```
+4. Get patched binary with the original and patch file.
+	```bash
+	bspatch level1 level1_patched level1.patch
+	```
+
+## **Level 2**
+
+### Analyze program behavior:
+
+- Using `gdb-peda`, we find that the input passcode must start with `"00"` and is followed by a sequence of groups of three numbers. The program validates these groups against a string stored in memory, "delabere".
+- By analyzing the instructions in `gdb` and the decompiled code using `retdec`, we confirm that the passcode `00101108097098101114101` satisfies these conditions, as each group corresponds to a character in "delabere".
+
+### Patching the binary
+1. Using `radare2`, locate the validation logic:
+  ```bash
+  r2 ./level2
+  aaa
+  s main // go to main
+  pdf // show every instruction of main
+  s <address> // go to adress with an instruction of 5 bytes
+  wa jmp <address> // address where ok() will be called
+  ```
+
+2. Test.
+```bash
+Please enter key: anything
+Good job.
+```
+
+3. Generate patch.
+	```bash
+	bsdiff level1 level1_patched level1.patch
+	```
+ 
+4. Get patched binary with the original and patch file.
+	```bash
+	bspatch level1 level1_patched level1.patch
+	```
+
+## **Level 3**
+
+### Analyze program behavior:
+- Run the binary:
+```bash
+bash$ cd /levels/level3
+bash$ ./level3
+Enter key: key123
+Invalid key.
+```
+- Using `gdb` and `radare2`, we determine that the input key must start with `"42"`. The rest of the string is processed in groups of three characters, each interpreted as an integer. These integers are stored in a buffer that is later matched against the string `********`.
+- By analyzing the instructions and logic using `gdb` and `radare2`, we derive the key `42042042042042042042042`, where each group corresponds to the required values.
+
+### Patching the binary
+1. Using `radare2`, locate the validation logic. We bypass verifications using a jmp:
+  ```bash
+  $> r2 ./level2
+  $> aaa
+  $> s main // go to main
+  $> pdf // show every instruction of main
+  $> s 0x00001369
+  $> pdi 2
+  0x00001369           b832000000  mov eax, 0x32
+  0x0000136e                 39c8  cmp eax, ecx
+  $> wa jmp 0x000014a7
+  INFO: Written 5 byte(s) (jmp 0x000014a7) = wx e939010000 @ 0x00001369
+  $> pdi 2
+  0x00001369           e939010000  jmp 0x14a7
+  0x0000136e                 39c8  cmp eax, ecx
+  $> qyy
+  
+  ```
+
+2. Test.
+```bash
+Please enter key: anything
+Good job.
+```
+
+3. Generate patch.
+	```bash
+	bsdiff level1 level1_patched level1.patch
+	```
+
+3. Get patched binary with the original and patch file.
+	```bash
+	bspatch level1 level1_patched level1.patch
+	```
