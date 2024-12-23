@@ -6,5 +6,5 @@ peda*
 src/levels/level1/a.out
 src/levels/level1/output/
 /workspace
-
+a.out
 src/workspace/
