@@ -4,3 +4,11 @@ r2 -w level1_patched
 /a cmp eax, 0
 s <address>
 wx 31c090 // xor eax, eax ; nop
+
+root@bfe70db0b900:/levels/level3# bsdiff level3 level3_patched level3.patch
+root@bfe70db0b900:/levels/level3# ls
+a.out  level3  level3.patch  level3_patched  password  peda-session-level3_patched.txt  source.c
+root@bfe70db0b900:/levels/level3# bspatch level3 level3_newww level3.patch
+root@bfe70db0b900:/levels/level3# ls
+a.out  level3  level3.patch  level3_newww  level3_patched  password  peda-session-level3_patched.txt  source.c
+root@bfe70db0b900:/levels/level3# ./level3_newww

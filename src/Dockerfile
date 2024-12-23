@@ -25,9 +25,7 @@ RUN git clone https://github.com/longld/peda.git ~/peda && \
 WORKDIR /etc
 RUN git clone https://github.com/radareorg/radare2 && \
     cd radare2 && \
-    sys/install.sh && \
-    cd .. && \
-    rm -rf radare2
+    sys/install.sh
 
 # Download and extract prebuilt RetDec binary
 RUN wget -q https://github.com/avast/retdec/releases/download/v4.0/retdec-v4.0-ubuntu-64b.tar.xz && \
@@ -44,6 +42,10 @@ RUN echo '#!/bin/bash\n'\
     chmod +x /usr/local/bin/decompile
 
 RUN mkdir /workspace
+
+RUN apt-get update && \
+    apt-get install -y bsdiff && \
+    rm -rf /var/lib/apt/lists/*
 
 # Default command
 CMD ["/bin/bash"]
